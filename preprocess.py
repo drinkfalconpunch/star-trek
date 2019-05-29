@@ -8,7 +8,7 @@ from bs4 import BeautifulSoup
 from episode import Episode
 
 class StarTrekPreprocessing():
-    url_base = 'https://sites.google.com/site/tvwriting/us-drama/show-collections/star-trek-{}'
+    _url_base = 'https://sites.google.com/site/tvwriting/us-drama/show-collections/star-trek-{}'
     _series = set(['tng', 'tos', 'ds9', 'voyager', 'enterprise'])
     
     _classes = {'tng': 'dhtgD'}
@@ -19,16 +19,16 @@ class StarTrekPreprocessing():
         if series not in self._series:
             raise ValueError(f'Invalid series {series}.')
         self.series = series
-        self.url = url
+        self.url = self._url_base if not url
         self.episodes = []
     
     def _populate_episodes(self):
-        r = requests.get(self.url_base.format(self.series))
+        r = requests.get(self._url_base.format(self.series))
         soup = BeautifulSoup(r.content, 'lxml')
 
         episode_name_regex = r"(?<=\-\s).*(?=\.)" # (?<=\-\s) matches after '- ', (?=\.) matches before '.', and '.*' is everything inside.
-        original_name_regex = r"^(.+?)\saka*"
-        alt_name_regex = r"(?<=aka\s).*$"
+        original_name_regex = r"^(.+?)\saka*" # matches everything from the beginning of the string to ' aka'
+        alt_name_regex = r"(?<=aka\s).*$" # matches everything after 'aka ' to the end of the string if it exists.
 
         episode_pattern = re.compile(episode_name_regex)
         original_name_pattern = re.compile(original_name_regex)

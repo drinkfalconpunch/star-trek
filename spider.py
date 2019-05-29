@@ -1,6 +1,7 @@
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
+from bs4 import BeautifulSoup
 from time import sleep
 
 class StarTrekSpider():
@@ -50,4 +51,9 @@ class StarTrekSpider():
         self.get_url(url)
         for s in self.driver.find_elements(By.XPATH, xpath)[:4]:
             # s.get_attribute("href")
-            wget.download(s.get_attribute("href"))#, r"C:\Users\John Hudson\Code\star-trek\test\{}".format(s.text))
+            r = s.get_attribute("href")#, r"C:\Users\John Hudson\Code\star-trek\test\{}".format(s.text)
+            soup = BeautifulSoup(r, 'lxml')
+            print(soup.text)
+#             file = open(f'{s.text}', 'wb')
+#             for chunk in r.iter_content(100000):
+#                 file.write(chunk)

@@ -1,5 +1,7 @@
 from dataclasses import dataclass
 
+# TODO: Convert all this to a database
+
 @dataclass
 class Episode:
     series_name: str = ''
@@ -9,4 +11,4 @@ class Episode:
     alt_name: str = ''
     multi_part: bool = False
     script_file_type: str = ''
-    script: str = ''
+    script: str = None

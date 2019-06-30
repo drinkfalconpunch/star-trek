@@ -2,6 +2,8 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.options import Options
 import requests
+import os
+from pathlib import Path
 from bs4 import BeautifulSoup
 from time import sleep
 
@@ -47,7 +49,19 @@ class StarTrekSpider():
             url = self.url_to_crawl
         self.driver.get(url)
 
-    def get_scripts(self, url=None):
+    def get_scripts(self, url=None, folder=None):
+        try:
+            os.makedirs(folder)
+        except OSError as e:
+            import errno
+            if e.errno != errno.EEXIST:
+                raise
+
+        try:
+            pwd = Path.cwd() / folder
+        except TypeError:
+            pwd = Path.cwd()
+
         self.get_url(url)
         for s in self.driver.find_elements_by_xpath(self.xpath)[:5]:
             # Get the redirect from the original page to where the pdf is located
@@ -61,4 +75,4 @@ class StarTrekSpider():
             r = requests.get(file)
 
             # Save the file to disk
-            open(f'{s.text}', 'wb').write(r.content)
+            open(pwd / s.text, 'wb').write(r.content)

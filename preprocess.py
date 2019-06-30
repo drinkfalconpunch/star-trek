@@ -19,7 +19,7 @@ class StarTrekPreprocessing():
         if series not in self._series:
             raise ValueError(f'Invalid series {series}.')
         self.series = series
-        self.url = self._url_base if not url
+        self.url = url or self._url_base
         self.episodes = []
     
     def _populate_episodes(self):

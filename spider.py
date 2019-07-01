@@ -106,18 +106,10 @@ class StarTrekSpider2():
         pass
 
     def get_scripts(self, folder=None):
-        try:
-            os.makedirs(folder)
-        except OSError as e:
-            # Check is error is directory exists and if so continue, else raise error.
-            import errno
-            if e.errno != errno.EEXIST:
-                raise
-
-        try:
-            pwd = Path.cwd() / folder
-        except TypeError:
-            pwd = Path.cwd()
+        pwd = Path('.')
+        if folder:
+            pwd = pwd / folder
+            pwd.mkdir(parents=True, exist_ok=True)
 
         r = requests.get(self._url)
         soup = BeautifulSoup(r.content, 'lxml')

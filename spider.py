@@ -7,6 +7,9 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 from time import sleep
 
+WINDOWS_CHARS = '<>:\"\\/|?*'
+
+
 class StarTrekSpider():
     _classes = {"tng": "dhtgD"}
     _xpath = '//*[contains(@class, "{}")]'
@@ -82,8 +85,18 @@ class StarTrekSpider():
 class StarTrekSpider2():
     _url = 'https://scifi.media/star-trek/transcripts/'
     _series = {'movies', 'ds9', 'tng', 'tos', 'voyager', 'enterprise'}
+    _series_ranges = {
+        'movies':     range(9, 11),
+        'tng':        range(18, 25),
+        'ds9':        range(32, 39),
+        'voyager':    range(46, 53),
+        'enterprise': range(60, 64),
+        'tos':        range(71, 74)
+    }
 
     def __init__(self, series=None):
+        if not series in self._series:
+            raise ValueError(f'Invalid series {series}. {self._series}')
         self.series = series
 
     def __enter__(self):
@@ -108,17 +121,32 @@ class StarTrekSpider2():
 
         r = requests.get(self._url)
         soup = BeautifulSoup(r.content, 'lxml')
-        section = soup.find('div', id=self.series).next_sibling
-        links = section('a')
+
+        ranges = soup.find_all(
+            'div',
+            {'class': [f'fusion-builder-column-{c}' for c in self._series_ranges[self.series]]}
+        )
 
         print('Downloading...')
-        for link in links:
-            s = requests.get(link['href'])
-            link_string = link.string
-            try:
-                link_string = link.string.replace(":", "-")
-            except:
-                pass
-            open(pwd / f'{link_string}.txt', 'wb').write(s.content)
 
-        print('Finished downloading')
+        # TODO: Threading
+        for i in ranges:
+            for j in i.find_all('a'):
+                file_name = j.text + '.txt'
+                r = requests.get(j['href'])
+
+                # Replace the colons with dashes
+                try:
+                    file_name = file_name.replace(":", " -")
+                except:
+                    pass
+
+                # Remove all the special chars that piss windows off
+                for ch in WINDOWS_CHARS:
+                    if ch in file_name:
+                        file_name = file_name.replace(ch, '')
+
+                file_path = pwd.joinpath(file_name)
+                open(file_path, 'wb').write(r.content)
+
+        print('Finished downloading.')

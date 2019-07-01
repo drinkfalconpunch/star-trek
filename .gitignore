@@ -18,3 +18,5 @@ geckodriver**
 test**
 
 \.DS_Store
+
+scripts/**

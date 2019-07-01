@@ -9,7 +9,7 @@ from episode import Episode
 
 class StarTrekPreprocessing():
     _url_base = 'https://sites.google.com/site/tvwriting/us-drama/show-collections/star-trek-{}'
-    _series = set(['tng', 'tos', 'ds9', 'voyager', 'enterprise'])
+    _series = {'tng', 'tos', 'ds9', 'voyager', 'enterprise'}
     
     _classes = {'tng': 'dhtgD'}
     _full_name = 'Star Trek - {}'
@@ -26,7 +26,8 @@ class StarTrekPreprocessing():
         r = requests.get(self._url_base.format(self.series))
         soup = BeautifulSoup(r.content, 'lxml')
 
-        episode_name_regex = r"(?<=\-\s).*(?=\.)" # (?<=\-\s) matches after '- ', (?=\.) matches before '.', and '.*' is everything inside.
+        episode_name_regex = r"(?<=\-\s).*(?=\.txt)" # (?<=\-\s) matches after '- ', (?=\.) matches before '.',
+        # and '.*' is everything inside.
         original_name_regex = r"^(.+?)\saka*" # matches everything from the beginning of the string to ' aka'
         alt_name_regex = r"(?<=aka\s).*$" # matches everything after 'aka ' to the end of the string if it exists.
 

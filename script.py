@@ -8,6 +8,9 @@ class Script:
         self.script = script
         self.dialogue = None
     
+    def _get_dialogue(self, block):
+        pass
+    
     def extract_entire_dialogue(self, remove_blank_lines=False):
         script = deque(self.script.split('\n'))
         # Iterate through the lines until a number is found as the first character.
@@ -18,14 +21,10 @@ class Script:
             # Skip blank lines
             if not words:
                 continue
-            try:
-                # Found the first line.
-                int(words[0][0])
+            if words[0][0].isdigit():
                 #  Put it back and break. Runs in O(1) time.
                 script.appendleft(line)
                 break
-            except ValueError:
-                continue
 
         if remove_blank_lines:
             script = list(filter(None, script))
@@ -74,19 +73,16 @@ class Script:
         actors = ''
         for line in self.script.split('\n'):
             words = line.split()
-            if not words:
-                continue
-            if len(words[0]) > 1 and all([i.isupper() for i in words]):
+#             if not words:
+#                 continue
+            if len(words) > 1 and len(words[0]) > 1 and all([i.isupper() for i in words]):
                 # check if line starts with number and skip if true
-                try:
-                    int(words[0][0])
-                    continue
-                except:
-                    pass
-                print('caps', words)
-                continue
-            if len(line) - len(line.lstrip()) > 4:
+                if not words[0][0].isdigit():
+                    break
+            if len(line) - len(line.lstrip()) > 3:
                 spoken_text = spoken_text + line.strip() + ' \n'
+        
+        return 
     
     def sectioned_script(self):
         script = deque(self.script)

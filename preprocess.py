@@ -2,8 +2,8 @@ import os
 from pathlib import Path
 import re
 import requests
-import selenium
-from bs4 import BeautifulSoup
+# import selenium
+# from bs4 import BeautifulSoup
 
 from episode import Episode
 

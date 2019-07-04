@@ -35,7 +35,7 @@ class StarTrekSpider():
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    async def _fetch_content(self, session, url):
+    async def _fetch_content2(self, session, url):
         async with session.get(url) as response:
             if response.status != 200:
                 response.raise_for_status()
@@ -54,6 +54,8 @@ class StarTrekSpider():
                 else:
                     file_name = file_name.replace(ch, '')
 
+        return file_name, download_url
+
     def _collect_download_names_urls(self):
         downloads = {}
 
@@ -67,48 +69,98 @@ class StarTrekSpider():
 
         for i in ranges:
             for j in i.find_all('a'):
-                file_name = j.text + '.txt'
-                download_url = j['href']
-
-                # Remove all the special chars that piss windows off
-                for ch in WINDOWS_CHARS:
-                    if ch in file_name:
-                        if ch == ':':
-                            # Replace colons with dashes
-                            file_name = file_name.replace(ch, " -")
-                        else:
-                            file_name = file_name.replace(ch, '')
+                file_name, download_url = self._extract_name_url(j)
                 downloads[file_name] = download_url
 
         return downloads
 
-    async def _fetch_all(self, session, urls):
-        # https://stackoverflow.com/questions/35879769/fetching-multiple-urls-with-aiohttp-in-python-3-5
-        results = await asyncio.gather(*[asyncio.create_task(self._fetch_content(session, url)) for url in urls])
-        return results
+    def _save_script(self, content, file_name, path):
+        file_path = path / file_name
+        open(file_path, 'wb').write(content)
+
+    def _fetch_content(self, url):
+        r = requests.get(url)
+        if r.status_code != 200:
+            r.raise_for_status()
+        return r.content
+
+    def _fetch_and_save(self, url, file_name, path):
+        content = self._fetch_content(url)
+        self._save_script(content, file_name, path)
+
+    async def _fetch_and_save2(self, session, url, file_name, path):
+        content = await self._fetch_content(session, url)
+        await self._save_script(content, file_name, path)
 
     async def _write_url_to_file(self, download_url):
         async with aiohttp.ClientSession() as client:
             return await self._fetch_content(client, download_url)
 
-    async def get_scripts(self, series=None, folder=None):
-        if not series:
-            series = self.series
-
+    def _mkdir(self, folder=None):
         pwd = Path('.')
         if folder:
-            pwd = pwd / folder
-            pwd.mkdir(parents=True, exist_ok=True)
+            pwd = pwd / folder / self.series
+        else:
+            pwd = pwd / self.series
+        pwd.mkdir(parents=True, exist_ok=True)
 
+        return pwd
+
+    async def _get_scripts(self, folder=None):
+        # if not series:
+        #     series = self.series
+        print(1)
+        pwd = Path('.')
+        if folder:
+            pwd = pwd / folder / self.series
+        else:
+            pwd = pwd / self.series
+        pwd.mkdir(parents=True, exist_ok=True)
+        print(2)
         names_with_urls = self._collect_download_names_urls()
+        print(5)
 
+        sem = asyncio.Semaphore(1000)
+
+        async with aiohttp.ClientSession() as session:
+            tasks = []
+            for file_name, download_url in names_with_urls.items():
+                tasks.append(
+                    self._fetch_and_save(
+                        session=session,
+                        url=download_url,
+                        file_name=file_name,
+                        path=pwd
+                    )
+                )
+            # asyncio.gather() will wait on the entire task set to be
+            # completed.  If you want to process results greedily as they come in,
+            # loop over asyncio.as_completed()
+            stuff = await asyncio.gather(*tasks, return_exceptions=True)
+            return stuff
+
+    def get_scripts_async(self, folder=None):
+        loop = asyncio.get_event_loop()
         print('Downloading...')
-
-        for file_name, download_url in names_with_urls.items():
-            content = await self._write_url_to_file(download_url)
-            file_path = pwd / file_name
-            open(file_path, 'wb').write(content)
+        future = asyncio.create_task(self._get_scripts(folder))
         print('Finished downloading.')
+        loop.run_until_complete(future)
+
+    def get_scripts(self, folder=None):
+        path = self._mkdir(folder)
+        names_with_urls = self._collect_download_names_urls()
+        print('Downloading...')
+        for file_name, url in names_with_urls.items():
+            self._fetch_and_save(url, file_name, path)
+        print(f'Finished downloading. Scripts saved in {path.absolute()}')
+
+
+        # for file_name, download_url in names_with_urls:
+        #     content = await self._write_url_to_file(download_url)
+        #     self._save_script(content, file_name, pwd)
+        # colors = ['red', 'blue', 'green']  # ...
+        # # Either take colors from stdin or make some default here
+        # asyncio.run(main(colors))
 
 
 # class StarTrekSpider():

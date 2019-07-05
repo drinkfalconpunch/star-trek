@@ -1,12 +1,11 @@
-# from selenium import webdriver
-# from selenium.webdriver.common.by import By
-# from selenium.webdriver.chrome.options import Options
+from __future__ import annotations
+
 import aiohttp
 import requests
-import os
 from pathlib import Path
+import bs4
 from bs4 import BeautifulSoup
-from time import sleep
+from typing import Union, Tuple, Dict
 import asyncio
 
 WINDOWS_CHARS = '<>:\"\\/|?*'
@@ -24,18 +23,19 @@ class StarTrekSpider():
         'tos':        range(71, 74)
     }
 
-    def __init__(self, series=None):
+    def __init__(self, series: str = None) -> None:
         if not series in self._series:
             raise ValueError(f'Invalid series {series}. {self._series}')
         self.series = series
 
-    def __enter__(self):
+    def __enter__(self) -> StarTrekSpider:
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    def _extract_name_url(self, blob):
+    @staticmethod
+    def _extract_name_url(blob: bs4.element.Tag) -> Tuple[str, str]:
         file_name = blob.text + '.txt'
         download_url = blob['href']
 
@@ -50,7 +50,7 @@ class StarTrekSpider():
 
         return file_name, download_url
 
-    def _collect_download_names_urls(self):
+    def _collect_download_names_urls(self) -> Dict[str, str]:
         downloads = {}
 
         r = requests.get(self._url)
@@ -62,27 +62,31 @@ class StarTrekSpider():
         )
 
         for i in ranges:
-            for j in i.find_all('a'):
-                file_name, download_url = self._extract_name_url(j)
+            for blob in i.find_all('a'):
+                file_name, download_url = self._extract_name_url(blob)
                 downloads[file_name] = download_url
 
         return downloads
 
-    def _save_script(self, content, file_name, path):
+    @staticmethod
+    def _save_script(content: bytes, file_name: str, path: Union[str, Path]) -> None:
         file_path = path / file_name
         open(file_path, 'wb').write(content)
 
-    def _fetch_content(self, url):
+    @staticmethod
+    def _fetch_content(url: str) -> bytes:
         r = requests.get(url)
         if r.status_code != 200:
             r.raise_for_status()
         return r.content
 
-    def _fetch_and_save(self, url, file_name, path):
+    def _fetch_and_save(self, url: str, file_name: str, path: Union[str, Path]) -> None:
         content = self._fetch_content(url)
         self._save_script(content, file_name, path)
 
-    async def _fetch_and_save_async(self, session, url, file_name, path, chunk_size=1000):
+    async def _fetch_and_save_async(self, session: aiohttp.ClientSession, url: str, 
+                                    file_name: str, path: Union[str, Path], 
+                                    chunk_size: int = 1000) -> None:
         file_path = path / file_name
         async with session.get(url) as resp:
             if resp.status != 200:
@@ -94,7 +98,7 @@ class StarTrekSpider():
                         break
                     fd.write(chunk)
 
-    def _mkdir(self, folder=None):
+    def _mkdir(self, folder: Union[str, Path] = None) -> Path:
         pwd = Path('.')
         if folder:
             pwd = pwd / folder / self.series
@@ -104,9 +108,8 @@ class StarTrekSpider():
 
         return pwd
 
-    async def _get_scripts(self, folder=None):
+    async def _get_scripts(self, path: Union[str, Path]) -> None:
         tasks = []
-        path = self._mkdir(folder)
         names_with_urls = self._collect_download_names_urls()
 
         async with aiohttp.ClientSession() as session:
@@ -120,14 +123,15 @@ class StarTrekSpider():
             responses = asyncio.gather(*tasks)
             await responses
 
-    def get_scripts_async(self, folder=None):
+    def get_scripts_async(self, folder: Union[str, Path] = None) -> None:
         loop = asyncio.get_event_loop()
+        path = self._mkdir(folder)
         print('Downloading...')
-        future = loop.create_task(self._get_scripts(folder))
+        future = loop.create_task(self._get_scripts(path))
         loop.run_until_complete(future)
         print('Finished downloading.')
 
-    def get_scripts(self, folder=None):
+    def get_scripts(self, folder: Union[str, Path] = None) -> None:
         path = self._mkdir(folder)
         names_with_urls = self._collect_download_names_urls()
         print('Downloading...')

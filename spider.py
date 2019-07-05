@@ -35,12 +35,6 @@ class StarTrekSpider():
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    async def _fetch_content2(self, session, url):
-        async with session.get(url) as response:
-            if response.status != 200:
-                response.raise_for_status()
-            return await response.content
-
     def _extract_name_url(self, blob):
         file_name = blob.text + '.txt'
         download_url = blob['href']
@@ -88,13 +82,17 @@ class StarTrekSpider():
         content = self._fetch_content(url)
         self._save_script(content, file_name, path)
 
-    async def _fetch_and_save2(self, session, url, file_name, path):
-        content = await self._fetch_content(session, url)
-        await self._save_script(content, file_name, path)
-
-    async def _write_url_to_file(self, download_url):
-        async with aiohttp.ClientSession() as client:
-            return await self._fetch_content(client, download_url)
+    async def _fetch_and_save_async(self, session, url, file_name, path, chunk_size=1000):
+        file_path = path / file_name
+        async with session.get(url) as resp:
+            if resp.status != 200:
+                resp.raise_for_status()
+            with open(file_path, 'wb') as fd:
+                while True:
+                    chunk = await resp.content.read(chunk_size)
+                    if not chunk:
+                        break
+                    fd.write(chunk)
 
     def _mkdir(self, folder=None):
         pwd = Path('.')
@@ -107,44 +105,27 @@ class StarTrekSpider():
         return pwd
 
     async def _get_scripts(self, folder=None):
-        # if not series:
-        #     series = self.series
-        print(1)
-        pwd = Path('.')
-        if folder:
-            pwd = pwd / folder / self.series
-        else:
-            pwd = pwd / self.series
-        pwd.mkdir(parents=True, exist_ok=True)
-        print(2)
+        tasks = []
+        path = self._mkdir(folder)
         names_with_urls = self._collect_download_names_urls()
-        print(5)
-
-        sem = asyncio.Semaphore(1000)
 
         async with aiohttp.ClientSession() as session:
-            tasks = []
-            for file_name, download_url in names_with_urls.items():
-                tasks.append(
-                    self._fetch_and_save(
-                        session=session,
-                        url=download_url,
-                        file_name=file_name,
-                        path=pwd
-                    )
+            for file_name, url in names_with_urls.items():
+                # pass Semaphore and session to every GET request
+                task = asyncio.ensure_future(
+                    self._fetch_and_save_async(session, url, file_name, path)
                 )
-            # asyncio.gather() will wait on the entire task set to be
-            # completed.  If you want to process results greedily as they come in,
-            # loop over asyncio.as_completed()
-            stuff = await asyncio.gather(*tasks, return_exceptions=True)
-            return stuff
+                tasks.append(task)
+
+            responses = asyncio.gather(*tasks)
+            await responses
 
     def get_scripts_async(self, folder=None):
         loop = asyncio.get_event_loop()
         print('Downloading...')
-        future = asyncio.create_task(self._get_scripts(folder))
-        print('Finished downloading.')
+        future = loop.create_task(self._get_scripts(folder))
         loop.run_until_complete(future)
+        print('Finished downloading.')
 
     def get_scripts(self, folder=None):
         path = self._mkdir(folder)
@@ -153,83 +134,3 @@ class StarTrekSpider():
         for file_name, url in names_with_urls.items():
             self._fetch_and_save(url, file_name, path)
         print(f'Finished downloading. Scripts saved in {path.absolute()}')
-
-
-        # for file_name, download_url in names_with_urls:
-        #     content = await self._write_url_to_file(download_url)
-        #     self._save_script(content, file_name, pwd)
-        # colors = ['red', 'blue', 'green']  # ...
-        # # Either take colors from stdin or make some default here
-        # asyncio.run(main(colors))
-
-
-# class StarTrekSpider():
-#     _classes = {"tng": "dhtgD"}
-#     _xpath = '//*[contains(@class, "{}")]'
-#     _url = 'https://sites.google.com/site/tvwriting/us-drama/show-collections/star-trek-{}'
-#
-#     def __init__(self, url, series, driver=None, browser='chrome'):
-#         if not series:
-#             ValueError('Series needed for spider.')
-#         if not url:
-#             ValueError('URL needed for scraping.')
-#         self.url_to_crawl = url.format(series)
-#         self.xpath = self._xpath.format(self._classes[series])
-#         self.items = []
-#         # self.options = Options()
-#         self.browser = browser
-#
-#     def __enter__(self):
-#         self.open_webdriver()
-#         return self
-#
-#     def __exit__(self, exception_type, exception_value, traceback):
-#         # from https://docs.quantifiedcode.com/python-anti-patterns/correctness/exit_must_accept_three_arguments.html
-#         self.close_webdriver()
-#
-#     def open_webdriver(self):
-#         if self.browser.lower() == 'chrome':
-#             self.driver = webdriver.Chrome('chromedriver', chrome_options=self.options)
-#         elif self.browser.lower() == 'firefox':
-#             self.driver = webdriver.Firefox()
-#         else:
-#             raise ValueError('Invalid browser.')
-#         print('Webdriver opened')
-#         sleep(2)
-#
-#     def close_webdriver(self):
-#         self.driver.quit()
-#         print('Webdriver closed')
-#
-#     def get_url(self, url=None):
-#         url = self.url_to_crawl if not url else url
-#         self.driver.get(url)
-#
-#     def get_scripts(self, url=None, folder=None):
-#         try:
-#             os.makedirs(folder)
-#         except OSError as e:
-#             # Check is error is directory exists and if so continue, else raise error.
-#             import errno
-#             if e.errno != errno.EEXIST:
-#                 raise
-#
-#         try:
-#             pwd = Path.cwd() / folder
-#         except TypeError:
-#             pwd = Path.cwd()
-#
-#         self.get_url(url)
-#         for s in self.driver.find_elements_by_xpath(self.xpath):
-#             # Get the redirect from the original page to where the pdf is located
-#             r = requests.get(s.get_attribute('href'), allow_redirects=True)
-#
-#             # Load the content for parsing with bs4
-#             soup = BeautifulSoup(r.content, 'lxml')
-#
-#             # Get the url from the meta HTML tag
-#             file = soup.find_all('meta')[1]['content'][7:]
-#             r = requests.get(file)
-#
-#             # Save the file to disk
-#             open(pwd / s.text, 'wb').write(r.content)

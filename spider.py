@@ -1,19 +1,19 @@
 from __future__ import annotations
 
-import aiohttp
-import requests
-from pathlib import Path
-import bs4
-from bs4 import BeautifulSoup
-from typing import Union, Tuple, Dict
 import asyncio
+from pathlib import Path
+from typing import Dict, Tuple, Union
+
+import aiohttp
+import bs4
+import requests
+from bs4 import BeautifulSoup
 
 WINDOWS_CHARS = '<>:\"\\/|?*'
 
 
 class StarTrekSpider():
     _url = 'https://scifi.media/star-trek/transcripts/'
-    _series = {'movies', 'ds9', 'tng', 'tos', 'voyager', 'enterprise'}
     _series_ranges = {
         'movies':     range(9, 11),
         'tng':        range(18, 25),
@@ -24,8 +24,6 @@ class StarTrekSpider():
     }
 
     def __init__(self, series: str = None) -> None:
-        if not series in self._series:
-            raise ValueError(f'Invalid series {series}. {self._series}')
         self.series = series
 
     def __enter__(self) -> StarTrekSpider:
@@ -80,13 +78,9 @@ class StarTrekSpider():
             r.raise_for_status()
         return r.content
 
-    def _fetch_and_save(self, url: str, file_name: str, path: Union[str, Path]) -> None:
-        content = self._fetch_content(url)
-        self._save_script(content, file_name, path)
-
-    async def _fetch_and_save_async(self, session: aiohttp.ClientSession, url: str, 
-                                    file_name: str, path: Union[str, Path], 
-                                    chunk_size: int = 1000) -> None:
+    async def _fetch_and_save(self, session: aiohttp.ClientSession, url: str,
+                              file_name: str, path: Union[str, Path],
+                              chunk_size: int = 1000) -> None:
         file_path = path / file_name
         async with session.get(url) as resp:
             if resp.status != 200:
@@ -116,25 +110,17 @@ class StarTrekSpider():
             for file_name, url in names_with_urls.items():
                 # pass Semaphore and session to every GET request
                 task = asyncio.ensure_future(
-                    self._fetch_and_save_async(session, url, file_name, path)
+                    self._fetch_and_save(session, url, file_name, path)
                 )
                 tasks.append(task)
 
             responses = asyncio.gather(*tasks)
             await responses
 
-    def get_scripts_async(self, folder: Union[str, Path] = None) -> None:
+    def get_scripts(self, folder: Union[str, Path] = None) -> None:
         loop = asyncio.get_event_loop()
         path = self._mkdir(folder)
         print('Downloading...')
         future = loop.create_task(self._get_scripts(path))
         loop.run_until_complete(future)
         print('Finished downloading.')
-
-    def get_scripts(self, folder: Union[str, Path] = None) -> None:
-        path = self._mkdir(folder)
-        names_with_urls = self._collect_download_names_urls()
-        print('Downloading...')
-        for file_name, url in names_with_urls.items():
-            self._fetch_and_save(url, file_name, path)
-        print(f'Finished downloading. Scripts saved in {path.absolute()}')

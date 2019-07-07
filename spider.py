@@ -5,9 +5,9 @@ from pathlib import Path
 from typing import Dict, Tuple, Union
 
 import aiohttp
-import bs4
 import requests
 from bs4 import BeautifulSoup
+from bs4.element import Tag
 
 WINDOWS_CHARS = '<>:\"\\/|?*'
 
@@ -33,7 +33,7 @@ class StarTrekSpider():
         pass
 
     @staticmethod
-    def _extract_name_url(blob: bs4.element.Tag) -> Tuple[str, str]:
+    def _extract_name_url(blob: Tag) -> Tuple[str, str]:
         file_name = blob.text + '.txt'
         download_url = blob['href']
 
@@ -117,10 +117,10 @@ class StarTrekSpider():
             responses = asyncio.gather(*tasks)
             await responses
 
-    def get_scripts(self, folder: Union[str, Path] = None) -> None:
+    def download_scripts(self, folder: Union[str, Path] = None) -> None:
         loop = asyncio.get_event_loop()
         path = self._mkdir(folder)
         print('Downloading...')
         future = loop.create_task(self._get_scripts(path))
         loop.run_until_complete(future)
-        print('Finished downloading.')
+        print(f'Finished downloading to {path.absolute()}')

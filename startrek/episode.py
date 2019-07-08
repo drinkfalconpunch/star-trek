@@ -16,28 +16,28 @@ class DictMixin:
 
 class IMDbMixin:
     @classmethod
-    def from_imdb(cls, imdb_movie: Movie, allowed: Optional[Sequence[str]]=None):
+    def from_imdb(cls, imdb_movie: Movie): #, allowed: Optional[Sequence[str]]=None):
         if not isinstance(imdb_movie, Movie):
             raise ValueError('Invalid IMDb movie format.')
 
-        # df = {}
+        df = {}
 
         # Replace the spaces so the names can be used as dict keys.
-        if allowed:
-            for key, value in imdb_movie.items():
-                if key in allowed or key.replace('_', ' ') in allowed:
-                    # df[key.replace(' ', '_')] = value
-                    setattr(cls, key.replace(' ', '_'), value)
-        else:
-            for key, value in imdb_movie.items():
-                # df[key.replace(' ', '_')] = value
-                setattr(cls, key.replace(' ', '_'), value)
+        # if allowed:
+        #     for key, value in imdb_movie.items():
+        #         if key in allowed or key.replace('_', ' ') in allowed:
+        #             df[key.replace(' ', '_')] = value
+        #             # setattr(cls, key.replace(' ', '_'), value)
+        # else:
+        for key, value in imdb_movie.items():
+            df[key.replace(' ', '_')] = value
+            # setattr(cls, key.replace(' ', '_'), value)
 
         # Set movieID
-        setattr(cls, 'movieID', imdb_movie.movieID)
-        # df['movieID'] = imdb_movie.movieID
+        # setattr(cls, 'movieID', imdb_movie.movieID)
+        df['movieID'] = imdb_movie.movieID
 
-        return cls
+        return cls(df)
 
 class Season:
     def __init__(self, season_number: int, episodes: Dict[int, Movie]):
@@ -53,10 +53,12 @@ class Season:
             print(f'Invalid episode {episode}.')
 
     def _populate_episodes(self):
+        print(self._episodes)
         for episode_number, episode in self._episodes.items():
-            self.episodes[episode_number] = Episode.from_imdb(episode, allowed=Episode.allowed)
+            print(episode_number, episode)
+            self.episodes[episode_number] = Episode.from_imdb(episode)
         self.episodes = sorted_dict(self.episodes)
-        del self._episodes
+        # del self._episodes
 
 
 class Series:
@@ -70,7 +72,7 @@ class Series:
         for season_number, episodes in self._seasons.items():
             self.seasons[season_number] = Season(season_number, episodes)
         self.seasons = sorted_dict(self.seasons)
-        del self._seasons
+        # del self._seasons
 
     def get_season(self, season_number):
         try:
@@ -84,10 +86,10 @@ class Series:
 
 # @dataclass
 class Episode(IMDbMixin):
-    allowed = ('rating', 'season', 'episode', 'episode title', 'series title',
-               'original air date', 'title', 'votes', 'year', 'movieID')
 
     def __init__(self, episode: Dict[Union[str, int], Union[str, int, float]], **kwargs) -> None:
+        self.allowed = ('rating', 'season', 'episode', 'episode title', 'series title',
+                   'original air date', 'title', 'votes', 'year', 'movieID')
 
         # Replace the spaces so the names can be used as dict keys.
         for key, value in episode.items():
@@ -128,7 +130,7 @@ class Episode(IMDbMixin):
 
     @property
     def series_sub_title(self) -> str:
-        full_title = self.series_full_title()
+        full_title = self.series_full_title
         if full_title:
             return full_title[11:]
         return ''

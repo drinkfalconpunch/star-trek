@@ -1,43 +1,12 @@
 from imdb.Movie import Movie
-from typing import Dict, List, Union, Optional, Sequence
+from typing import Dict, Union
 from startrek.script import Script
 from startrek.utils import sorted_dict
+from startrek.mixins import IMDbMixin
 
 
 
 # TODO: Convert all this to a database
-
-class DictMixin:
-    @classmethod
-    def from_dict(cls, d: Dict, *, allowed: List[str]):
-        df = {k: v for k, v in d.items() if k in allowed}
-
-        return cls(**df)
-
-class IMDbMixin:
-    @classmethod
-    def from_imdb(cls, imdb_movie: Movie): #, allowed: Optional[Sequence[str]]=None):
-        if not isinstance(imdb_movie, Movie):
-            raise ValueError('Invalid IMDb movie format.')
-
-        df = {}
-
-        # Replace the spaces so the names can be used as dict keys.
-        # if allowed:
-        #     for key, value in imdb_movie.items():
-        #         if key in allowed or key.replace('_', ' ') in allowed:
-        #             df[key.replace(' ', '_')] = value
-        #             # setattr(cls, key.replace(' ', '_'), value)
-        # else:
-        for key, value in imdb_movie.items():
-            df[key.replace(' ', '_')] = value
-            # setattr(cls, key.replace(' ', '_'), value)
-
-        # Set movieID
-        # setattr(cls, 'movieID', imdb_movie.movieID)
-        df['movieID'] = imdb_movie.movieID
-
-        return cls(df)
 
 class Season:
     def __init__(self, season_number: int, episodes: Dict[int, Movie]):
@@ -58,7 +27,7 @@ class Season:
             print(episode_number, episode)
             self.episodes[episode_number] = Episode.from_imdb(episode)
         self.episodes = sorted_dict(self.episodes)
-        # del self._episodes
+        del self._episodes
 
 
 class Series:
@@ -112,21 +81,6 @@ class Episode(IMDbMixin):
 
     def add_script(self, script):
         self.script = Script(script)
-
-    # def from_imdb(self, imdb_movie, allowed: List[str] = None):
-    #     if not isinstance(imdb_movie, Movie):
-    #         raise ValueError('Invalid IMDb movie format.')
-    #
-    #     # Replace the spaces so the names can be used as dict keys.
-    #     for key in imdb_movie.keys():
-    #         # key.replace(' ', '_')
-    #         # if allowed:
-    #         #     if key in allowed:
-    #         #         setattr(cls, key, imdb_movie[key])
-    #         # else:
-    #         setattr(cls, key.replace(' ', '_'), imdb_movie[key])
-    #
-    #     return cls
 
     @property
     def series_sub_title(self) -> str:

@@ -20,17 +20,22 @@ class IMDbMixin:
         if not isinstance(imdb_movie, Movie):
             raise ValueError('Invalid IMDb movie format.')
 
+        # df = {}
+
         # Replace the spaces so the names can be used as dict keys.
         if allowed:
             for key, value in imdb_movie.items():
                 if key in allowed or key.replace('_', ' ') in allowed:
+                    # df[key.replace(' ', '_')] = value
                     setattr(cls, key.replace(' ', '_'), value)
         else:
             for key, value in imdb_movie.items():
+                # df[key.replace(' ', '_')] = value
                 setattr(cls, key.replace(' ', '_'), value)
 
         # Set movieID
         setattr(cls, 'movieID', imdb_movie.movieID)
+        # df['movieID'] = imdb_movie.movieID
 
         return cls
 

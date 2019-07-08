@@ -1,10 +1,9 @@
 from imdb.Movie import Movie
-from typing import Dict, List
+from typing import Dict, List, Union, Optional, Sequence
 from startrek.script import Script
 from startrek.utils import sorted_dict
 
-allowed = ['rating', 'season', 'episode', 'episode_title', 'series_title',
-           'original_air_date', 'votes', 'year', 'movieID']
+
 
 # TODO: Convert all this to a database
 
@@ -17,21 +16,23 @@ class DictMixin:
 
 class IMDbMixin:
     @classmethod
-    def from_imdb(cls, imdb_movie, allowed: List[str]=None):
+    def from_imdb(cls, imdb_movie: Movie, allowed: Optional[Sequence[str]]=None):
         if not isinstance(imdb_movie, Movie):
             raise ValueError('Invalid IMDb movie format.')
 
         # Replace the spaces so the names can be used as dict keys.
-        for key in imdb_movie.keys():
-            if allowed:
-                if key in allowed:
-                    setattr(cls, key.replace(' ', '_'), imdb_movie[key])
-            else:
-                setattr(cls, key.replace(' ', '_'), imdb_movie[key])
+        if allowed:
+            for key, value in imdb_movie.items():
+                if key in allowed or key.replace('_', ' ') in allowed:
+                    setattr(cls, key.replace(' ', '_'), value)
+        else:
+            for key, value in imdb_movie.items():
+                setattr(cls, key.replace(' ', '_'), value)
+
+        # Set movieID
+        setattr(cls, 'movieID', imdb_movie.movieID)
 
         return cls
-
-
 
 class Season:
     def __init__(self, season_number: int, episodes: Dict[int, Movie]):
@@ -48,9 +49,9 @@ class Season:
 
     def _populate_episodes(self):
         for episode_number, episode in self._episodes.items():
-            self.episodes[episode_number] = Episode(episode)#, allowed=allowed)
-        # self.episodes = sorted_dict(self.episodes)
-        # del self._episodes
+            self.episodes[episode_number] = Episode.from_imdb(episode, allowed=Episode.allowed)
+        self.episodes = sorted_dict(self.episodes)
+        del self._episodes
 
 
 class Series:
@@ -63,8 +64,8 @@ class Series:
     def _populate_seasons(self):
         for season_number, episodes in self._seasons.items():
             self.seasons[season_number] = Season(season_number, episodes)
-        # self.seasons = sorted_dict(self.seasons)
-        # del self._seasons
+        self.seasons = sorted_dict(self.seasons)
+        del self._seasons
 
     def get_season(self, season_number):
         try:
@@ -77,30 +78,24 @@ class Series:
         return season.get_episode(episode_number)
 
 # @dataclass
-class Episode():
-    def __init__(self, imdb_movie) -> None:
-        if not isinstance(imdb_movie, Movie):
-            raise ValueError('Invalid IMDb movie format.')
+class Episode(IMDbMixin):
+    allowed = ('rating', 'season', 'episode', 'episode title', 'series title',
+               'original air date', 'title', 'votes', 'year', 'movieID')
+
+    def __init__(self, episode: Dict[Union[str, int], Union[str, int, float]], **kwargs) -> None:
 
         # Replace the spaces so the names can be used as dict keys.
-        for key in imdb_movie.keys():
-            # if allowed:
-            #     if key in allowed:
-            #         setattr(cls, key, imdb_movie[key])
-            # else:
-            setattr(self, key.replace(' ', '_'), imdb_movie[key])
-        # Initialize any extra values
-        # for key in kwargs:
-        #     setattr(self, key, kwargs[key])
+        for key, value in episode.items():
+            if key in self.allowed or key.replace('_', ' ') in self.allowed:
+                setattr(self, key.replace(' ', '_'), value)
 
-    #         _series_name: str = ''
-    #         season_number: int = 0
-    #         episode_number: int = 0
-    #         episode_name: str = ''
-    #         alt_name: str = ''
-    #         multi_part: bool = False
-    #         script_file_type: str = ''
+        # Initialize any extra values
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+
         self.script = None
+
+        del self.allowed
 
     def __repr__(self):
         return self.title

@@ -22,9 +22,7 @@ class Season:
             print(f'Invalid episode {episode}.')
 
     def _populate_episodes(self):
-        print(self._episodes)
         for episode_number, episode in self._episodes.items():
-            print(episode_number, episode)
             self.episodes[episode_number] = Episode.from_imdb(episode)
         self.episodes = sorted_dict(self.episodes)
         del self._episodes
@@ -41,7 +39,7 @@ class Series:
         for season_number, episodes in self._seasons.items():
             self.seasons[season_number] = Season(season_number, episodes)
         self.seasons = sorted_dict(self.seasons)
-        # del self._seasons
+        del self._seasons
 
     def get_season(self, season_number):
         try:

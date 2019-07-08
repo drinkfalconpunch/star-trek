@@ -4,14 +4,17 @@ OMITTED = 'OMITTED'
 STAR_TREK = 'STAR TREK'
 
 class Script:
-    def __init__(self, script):
+    def __init__(self, script=None, series_name=None, season_number=0, episode_number=0):
         self.script = script
+        self.series_name = series_name
+        self.season_number = season_number
+        self.episode_number = episode_number
         self.dialogue = None
     
     def _get_dialogue(self, block):
         pass
     
-    def extract_entire_dialogue(self, remove_blank_lines=False):
+    def extract_episode_dialogue(self, remove_blank_lines=False):
         script = deque(self.script.split('\n'))
         # Iterate through the lines until a number is found as the first character.
         while True:
@@ -69,7 +72,7 @@ class Script:
 
         return sections, indices
     
-    def find_actors(self):
+    def find_actors(self, name_length: int = 3):
         actors = ''
         for line in self.script.split('\n'):
             words = line.split()
@@ -79,10 +82,10 @@ class Script:
                 # check if line starts with number and skip if true
                 if not words[0][0].isdigit():
                     break
-            if len(line) - len(line.lstrip()) > 3:
+            if len(line) - len(line.lstrip()) > name_length:
                 spoken_text = spoken_text + line.strip() + ' \n'
         
-        return 
+        return actors
     
     def sectioned_script(self):
         script = deque(self.script)

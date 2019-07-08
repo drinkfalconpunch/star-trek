@@ -45,10 +45,11 @@ class StarTrek:
     def download_scripts(self, folder=None):
         self.spider.download_scripts(folder)
 
-    def _get_series(self):
+    def download_imdb_episodes(self):
         if self.episodes:
             return self.episodes
 
+        print('Downloading episodes...')
         ia = IMDb()
         show = ia.search_movie(self.full_name)[0]
         imdbID = ia.get_imdbID(show)
@@ -58,6 +59,7 @@ class StarTrek:
         ia.update(show, 'episodes')
 
         self.episodes = Series(show['episodes'])
+        print('Finished populating episodes.')
 
     def get_episode(self, season: int, episode: int):
         return self.episodes.get_episode(season, episode)

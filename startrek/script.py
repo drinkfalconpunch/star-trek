@@ -74,6 +74,7 @@ class Script:
     
     def find_actors(self, name_length: int = 3):
         actors = ''
+        spoken_text = ''
         for line in self.script.split('\n'):
             words = line.split()
 #             if not words:

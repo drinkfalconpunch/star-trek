@@ -96,4 +96,4 @@ class StarTrek:
         if not self.series:
             print('Episodes not populated. Use download_imdb_episodes first.')
             return
-        self.series.season[season].episode[episode].set_script(script_path, script_text)
+        self.series.seasons[season].episodes[episode].set_script(script_path, script_text)

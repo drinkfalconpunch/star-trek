@@ -34,7 +34,7 @@ class StarTrekSpider():
 
     @staticmethod
     def _extract_name_url(blob: Tag) -> Tuple[str, str]:
-        file_name = blob.text + '.txt'
+        file_name = blob.text.strip() + '.txt'
         download_url = blob['href']
 
         # Remove all the special chars that piss windows off
@@ -84,7 +84,11 @@ class StarTrekSpider():
         file_path = path / file_name
         async with session.get(url) as resp:
             if resp.status != 200:
-                resp.raise_for_status()
+                # if resp.status == 404:
+
+                # print(url)
+                # resp.raise_for_status()
+                return
             with open(file_path, 'wb') as fd:
                 while True:
                     chunk = await resp.content.read(chunk_size)

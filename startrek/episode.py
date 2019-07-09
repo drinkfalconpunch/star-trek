@@ -2,8 +2,7 @@ from imdb.Movie import Movie
 from typing import Dict, Union
 from startrek.script import Script
 from startrek.utils import sorted_dict
-from startrek.mixins import IMDbMixin
-
+from startrek.episode_mixins import IMDbMixin
 
 
 # TODO: Convert all this to a database
@@ -30,6 +29,7 @@ class Season:
 
 class Series:
     '''American version of a TV series consisting of one or more seasons.'''
+
     def __init__(self, seasons: Dict[int, Dict[int, Movie]] = None):
         self._seasons = seasons
         self.seasons = {}
@@ -51,12 +51,11 @@ class Series:
         season = self.get_season(season_number)
         return season.get_episode(episode_number)
 
-# @dataclass
-class Episode(IMDbMixin):
 
+class Episode(IMDbMixin):
     def __init__(self, episode: Dict[Union[str, int], Union[str, int, float]], **kwargs) -> None:
         self.allowed = ('rating', 'season', 'episode', 'episode title', 'series title',
-                   'original air date', 'title', 'votes', 'year', 'movieID')
+                        'original air date', 'title', 'votes', 'year', 'movieID')
 
         # Replace the spaces so the names can be used as dict keys.
         for key, value in episode.items():

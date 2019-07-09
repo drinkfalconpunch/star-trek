@@ -15,6 +15,6 @@ class IMDbMixin:
             raise ValueError('Invalid IMDb movie format.')
 
         df = {k.replace(' ', '_'): v for k, v in imdb_movie.items()}
-        df['movieID'] = imdb_movie.movieID
+        df['movieID'] = int(str(imdb_movie.movieID).lstrip('0'))
 
         return cls(df)

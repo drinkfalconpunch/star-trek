@@ -48,6 +48,9 @@ class StarTrekSpider():
 
         return file_name, download_url
 
+    def _corner_cases(self, series):
+        pass
+
     def _collect_download_names_urls(self) -> Dict[str, str]:
         downloads = {}
 

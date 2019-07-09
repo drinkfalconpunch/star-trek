@@ -71,10 +71,10 @@ class Episode(IMDbMixin):
         del self.allowed
 
     def __repr__(self):
-        return self.title
+        return getattr(self, 'title', '')
 
     def __str__(self):
-        return self.title
+        return getattr(self, 'title', '')
 
     def add_script(self, script):
         self.script = Script(script)
@@ -93,3 +93,12 @@ class Episode(IMDbMixin):
             return title[:-29]
         except AttributeError:
             return ''
+
+    def set_script(self, script_path=None, script_text=None):
+        if script_path:
+            script_text = open(script_path, 'r').read()
+        else:
+            if not script_text:
+                script_text = ''
+        self.script = Script(script_text, series_name=self.series_title,
+                                 season_number=self.season, episode_number=self.episode)

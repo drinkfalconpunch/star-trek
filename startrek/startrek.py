@@ -46,7 +46,7 @@ class StarTrek:
         if series_short_name not in self._series_short_names:
             raise ValueError(f'Invalid series {series_short_name}. {self._series_short_names}')
         self._series_short_name = series_short_name
-        self.full_name = self._full_name.format(self._series_long_names[series_short_name])
+        self.full_name = self._full_name.format(self._series_long_names[self.series_short_name])
         self.spider = StarTrekSpider(series=series_short_name)
         self.series = None
 
@@ -94,6 +94,6 @@ class StarTrek:
 
     def set_script(self, season, episode, script_path=None, script_text=None):
         if not self.series:
-            print('Episodes not populated. Use download_imdb_episodes first.')
+            print('Episodes not populated. Use download_imdb_episodes() first.')
             return
         self.series.seasons[season].episodes[episode].set_script(script_path, script_text)

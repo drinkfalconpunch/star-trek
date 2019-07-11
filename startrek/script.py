@@ -1,4 +1,5 @@
 from collections import deque
+from startrek.exceptions import ScriptException
 
 OMITTED = 'OMITTED'
 STAR_TREK = 'STAR TREK'

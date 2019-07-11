@@ -5,7 +5,6 @@ from pathlib import Path
 from startrek.exceptions import ScriptException
 
 OMITTED = 'OMITTED'
-STAR_TREK = 'STAR TREK'
 
 class ScriptBase(metaclass=ABCMeta):
     def __init__(self, script_text=None, script_path=None, series_name=None,
@@ -35,12 +34,14 @@ class ScriptBase(metaclass=ABCMeta):
         if isinstance(script_path, str):
             script_path = Path(script_path)
         if not script_path.exists():
-            raise ScriptException(f'Invalid script path {script_path}')
+            raise ScriptException(f'Invalid script path: {script_path}')
         return open(script_path, 'r').read()
 
 
 
 class ScriptBlocks(ScriptBase):
+    SECTION_HEADER = ''
+
     _regex_section_number = r'^\d+[a-zA-Z]?'
     regex_section_number = re.compile(_regex_section_number)
     # regex to get everything between two brackets if it is the only thing in the line.
@@ -75,7 +76,7 @@ class ScriptBlocks(ScriptBase):
         script = [s.lstrip() for s in script]
 
         # Remove page header lines and lines with OMITTED in between section numbers
-        dialogue = list(filter(lambda line: line[:len(STAR_TREK)] != STAR_TREK, script))
+        dialogue = list(filter(lambda line: line[:len(self.SECTION_HEADER)] != self.SECTION_HEADER, script))
         dialogue = list(filter(lambda line: 'OMITTED' not in line or line[0][0].isdigit(), dialogue))
 
         self.dialogue = dialogue
@@ -229,10 +230,12 @@ class ScriptLines(ScriptBase):
 
 class ScriptTNG(ScriptBlocks):
     """Script class for The Next Generation."""
+    SECTION_HEADER = 'STAR TREK'
     pass
 
 class ScriptDeepSpaceNine(ScriptBlocks):
     """Script class for Deep Space Nine."""
+    SECTION_HEADER = 'DEEP SPACE'
     pass
 
 class ScriptEnterprise(ScriptLines):

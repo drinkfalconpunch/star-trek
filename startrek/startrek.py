@@ -79,7 +79,7 @@ class StarTrek:
         ia = IMDb()
         # show = ia.search_movie(self.full_name)[0]
         # imdbID = ia.get_imdbID(show)
-        long_name = self._series_long_names[self._series_short_name]
+        long_name = self._series_long_names[self.series_short_name]
         imdbID = self._star_trek[long_name]['imdb_movie_number']
         show = ia.get_movie(imdbID)
 

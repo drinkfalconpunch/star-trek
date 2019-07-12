@@ -9,9 +9,12 @@ OMITTED = 'OMITTED'
 class ScriptBase(metaclass=ABCMeta):
     def __init__(self, script_text=None, script_path=None, series_name=None,
                  season_number=0, episode_number=0):
-        if script_path:
-            script_text = self._get_script_path_contents(script_path)
-        self.script = script_text
+        if script_text:
+            self.script = script_text
+        elif script_path:
+            self.script = self._get_script_path_contents(script_path)
+        else:
+            raise ScriptException('No valid script.')
         self.series_name = series_name
         self.season_number = season_number
         self.episode_number = episode_number
@@ -54,8 +57,25 @@ class ScriptBlocks(ScriptBase):
     # _regex_dialogue_line = r'^[A-Z]{1,}.+:\s*(.+)'
     # regex_dialogue_line = re.compile(_regex_dialogue_line)
 
+    def _script_to_lines(self):
+        return [line for line in self.script]
+
+    def _iterate_lines_words(self, string, remove_blank_lines=False):
+        if isinstance(string, list):
+            string_list = string
+        else:
+            string_list = string.splitlines()
+        for line in string_list:
+            line = line.strip()
+            words = line.split()
+            if remove_blank_lines:
+                if line:
+                    yield line, words
+            else:
+                yield line, words
+
     def extract_episode_dialogue(self, remove_blank_lines=False):
-        script = deque(self.script.split('\n'))
+        script = deque(self.script.splitlines())
         # Iterate through the lines until a number is found as the first character.
         while True:
             line = script.popleft()
@@ -83,34 +103,30 @@ class ScriptBlocks(ScriptBase):
 
         return dialogue
 
+    def get_characters(self):
+        a = re.findall(self.regex_character, self.script)
+        print(a)
+
     def section_headers(self):
         '''Returns the section headers from a block of dialogue and their
         respective line numbers in said block.'''
         if not self.script:
-            raise AttributeError('') #'Dialogue not found. Script.extract_entire_dialogue()')
+            raise ScriptException('') #'Dialogue not found. Script.extract_entire_dialogue()')
         sections = {}
-        indices = []
 
-        for index, line in enumerate(self.script):
-            words = line.split()
-            if not words:
-                continue
-            try:
-                int(words[0][0])
-                number = words[0]
-                name = " ".join(words[1:])
+        for line, words in self._iterate_lines_words(self.script, remove_blank_lines=True):
+            number = re.findall(self.regex_section_number, words[0])
+            if number:
+                number = number[0]
+                name = re.findall(self.regex_header, line)
                 if not name:
-                    name = 'OMITTED'
-                # Check for same section number
+                    name = OMITTED
                 if number in sections.keys():
-                    sections[number].append(name)
+                    sections[number].extend(name)
                 else:
-                    sections[number] = [name]
-                indices.append(index)
-            except:
-                continue
+                    sections[number] = name
 
-        return sections, indices
+        return sections
 
     def sectioned_script(self):
         script = deque(self.script)
@@ -134,6 +150,8 @@ class ScriptBlocks(ScriptBase):
         return sections
 
 class ScriptLines(ScriptBase):
+
+
     # regex to get everything between two brackets if it is the only thing in the line.
     _regex_header = r'^\[([^\]]+?)\]$'
     regex_header = re.compile(_regex_header)
@@ -145,33 +163,34 @@ class ScriptLines(ScriptBase):
     regex_dialogue_line = re.compile(_regex_dialogue_line)
 
     def extract_episode_dialogue(self, remove_blank_lines=False):
-        script = deque(self.script.split('\n'))
-        # Iterate through the lines until a number is found as the first character.
-        while True:
-            line = script.popleft()
-            words = line.split()
-
-            # Skip blank lines
-            if not words:
-                continue
-            if words[0][0].isdigit():
-                #  Put it back and break. Runs in O(1) time.
-                script.appendleft(line)
-                break
-
-        if remove_blank_lines:
-            script = list(filter(None, script))
-
-        # Strip out the white space in lines with text
-        script = [s.lstrip() for s in script]
-
-        # Remove page header lines and lines with OMITTED in between section numbers
-        dialogue = list(filter(lambda line: line[:len(STAR_TREK)] != STAR_TREK, script))
-        dialogue = list(filter(lambda line: 'OMITTED' not in line or line[0][0].isdigit(), dialogue))
-
-        self.dialogue = dialogue
-
-        return dialogue
+        pass
+        # script = deque(self.script.split('\n'))
+        # # Iterate through the lines until a number is found as the first character.
+        # while True:
+        #     line = script.popleft()
+        #     words = line.split()
+        #
+        #     # Skip blank lines
+        #     if not words:
+        #         continue
+        #     if words[0][0].isdigit():
+        #         #  Put it back and break. Runs in O(1) time.
+        #         script.appendleft(line)
+        #         break
+        #
+        # if remove_blank_lines:
+        #     script = list(filter(None, script))
+        #
+        # # Strip out the white space in lines with text
+        # script = [s.lstrip() for s in script]
+        #
+        # # Remove page header lines and lines with OMITTED in between section numbers
+        # dialogue = list(filter(lambda line: line[:len(self.SECTION_HEADER)] != self.SECTION_HEADER, script))
+        # dialogue = list(filter(lambda line: 'OMITTED' not in line or line[0][0].isdigit(), dialogue))
+        #
+        # self.dialogue = dialogue
+        #
+        # return dialogue
 
     def section_headers(self):
         '''Returns the section headers from a block of dialogue and their

@@ -3,6 +3,7 @@ from collections import deque
 import re
 from pathlib import Path
 from startrek.exceptions import ScriptException
+from startrek.utils import pairwise
 
 OMITTED = 'OMITTED'
 
@@ -81,10 +82,8 @@ class ScriptBlocks(ScriptBase):
             line = script.popleft()
             words = line.split()
 
-            # Skip blank lines
-            if not words:
-                continue
-            if any(x in words for x in ('REV', 'REV.', 'FINAL')):
+            # Skip blank lines or a corner case where 2ND REV. FINAL DRAFT is in the script.
+            if not words or any(x in words for x in ('REV', 'REV.', 'FINAL', 'OMITTED')):
                 continue
             if words[0][0].isdigit():
                 #  Put it back and break. Runs in O(1) time.
@@ -99,7 +98,7 @@ class ScriptBlocks(ScriptBase):
 
         # Remove page header lines and lines with OMITTED in between section numbers
         dialogue = list(filter(lambda line: line[:len(self.SECTION_HEADER)] != self.SECTION_HEADER, script))
-        dialogue = list(filter(lambda line: 'OMITTED' not in line or line[0][0].isdigit(), dialogue))
+        # dialogue = list(filter(lambda line: 'OMITTED' not in line or line[0][0].isdigit(), dialogue))
 
         self.dialogue = dialogue
 
@@ -108,6 +107,13 @@ class ScriptBlocks(ScriptBase):
     def get_characters(self):
         a = re.findall(self.regex_character, self.script)
         print(a)
+
+    def _number_header_from_line(self, line):
+        line = line.split()
+        return line[0], ' '.join(line[1:])
+
+    def get_between_indices(self, s, begin, end):
+        return s[begin:end]
 
     def section_headers(self):
         '''Returns the section headers from a block of dialogue and their
@@ -118,6 +124,8 @@ class ScriptBlocks(ScriptBase):
             # raise AttributeError('')  # 'Dialogue not found. Script.extract_entire_dialogue()')
         sections = {}
         indices = []
+        _regex_number = r'^\d{1,3}?[a-zA-Z]{0,1}'
+        regex_number = re.compile(_regex_number)
 
         for index, line in enumerate(self.dialogue):
             words = line.split()
@@ -129,6 +137,11 @@ class ScriptBlocks(ScriptBase):
                 name = " ".join(words[1:])
                 if not name:
                     name = 'OMITTED'
+                # Corner case check if year is in section number
+                # if not re.findall(regex_number, number):
+                #     print(number, re.findall(regex_number, number))
+                if len(number) > 3 and number[3].isdigit():
+                    continue
                 # Check for same section number
                 if number in sections.keys():
                     sections[number].append(name)
@@ -138,46 +151,25 @@ class ScriptBlocks(ScriptBase):
             except:
                 continue
 
-        return sections, indices
+        setattr(self, 'section_names', sections)
+        setattr(self, 'header_indices', indices)
 
-    def sectioned_script(self): #, combine_same_sections=True):
+        # return sections, indices
+
+    def sectioned_script(self):
         if not self.dialogue:
             self.extract_episode_dialogue()
-        script = deque(self.dialogue)
+        if not hasattr(self, 'section_names'):
+            self.section_headers()
         sections = {}
-        section_number = ''
-        section_header = ''
-        temp_section = {}
 
-        while len(script) > 0:
+        index_pairs = pairwise(self.header_indices)
 
-            line = script.popleft().split()
-            if line[0][0].isdigit():
-                # Check for duplicate section number and section header.
-                current_number = line[0]
-                current_header = ' '.join(line[1:])
-                if section_number == current_number:
-                    if section_header == current_header:
-                        continue
-                    else:
-                        section_header = current_header
-                else:
-                    # Dump the temp section to its number and reset the temp section.
-                    # TODO: Check for same section number
-                    if section_number:
-                        if section_header == current_header:
-                            continue
-                        sections[section_number].append(temp_section)
-                        del temp_section
-                        temp_section = dict(section_header=section_header, text=[])
-                    section_number = current_number
-                    section_header = current_header
-
-                # Check if section exists and create new list if not.
-                if section_number not in sections:
-                    sections[section_number] = []
-            else:
-                temp_section['text'].append(' '.join(line))
+        for pair in index_pairs:
+            text = self.get_between_indices(self.dialogue, *pair)
+            head = text.pop(0)
+            number, header = self._number_header_from_line(head)
+            sections[number] = dict(header=header, text=text)
 
         return sections
 

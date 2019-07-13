@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 from startrek.exceptions import ScriptException
 from startrek.utils import pairwise
+from typing import List
 
 OMITTED = 'OMITTED'
 
@@ -74,6 +75,46 @@ class ScriptBlocks(ScriptBase):
                     yield line, words
             else:
                 yield line, words
+
+    @staticmethod
+    def separate_dialogue(block: List[str]):
+        block = deque(block)
+        temp = ''
+
+        # Check if any initial lines are text and save them.
+        while True:
+            line = block.popleft()
+            if not line.isupper():
+                # First line is dialogue/text
+                temp = f"{temp} {line}"
+            else:
+                block.appendleft(line)
+                break
+
+        dialogue = {}
+        dialogue[0] = dict(name='None', text=temp.strip())
+        name = ''
+        text = ''
+        index = 1
+        for line in block:
+            if line.isupper():
+                if name == line:
+                    continue
+                else:
+                    if name:
+                        dialogue[index] = dict(name=name, text=text.strip())
+                        name = line
+                        text = ''
+                        index += 1
+                    else:
+                        name = line
+                        continue
+            else:
+                text = f"{text} {line}"
+
+        return dialogue
+
+
 
     def extract_episode_dialogue(self, remove_blank_lines=True):
         script = deque(self.script.splitlines())
@@ -153,8 +194,6 @@ class ScriptBlocks(ScriptBase):
 
         setattr(self, 'section_names', sections)
         setattr(self, 'header_indices', indices)
-
-        # return sections, indices
 
     def sectioned_script(self):
         if not self.dialogue:

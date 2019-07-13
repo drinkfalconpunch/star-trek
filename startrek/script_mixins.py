@@ -4,6 +4,7 @@ import re
 from pathlib import Path
 from startrek.exceptions import ScriptException
 from startrek.utils import pairwise
+import itertools
 from typing import List
 
 OMITTED = 'OMITTED'
@@ -42,6 +43,10 @@ class ScriptBase(metaclass=ABCMeta):
             raise ScriptException(f'Invalid script path: {script_path}')
         return open(script_path, 'r').read()
 
+    @staticmethod
+    def separate_dialogue(block):
+        pass
+
 
 
 class ScriptBlocks(ScriptBase):
@@ -58,6 +63,39 @@ class ScriptBlocks(ScriptBase):
     # # regex to match everything after the character name, colon, and space
     # _regex_dialogue_line = r'^[A-Z]{1,}.+:\s*(.+)'
     # regex_dialogue_line = re.compile(_regex_dialogue_line)
+
+    def get_characters(self, script):
+        ACT = ['ACT']
+        END = ['END OF']
+        NUMBERS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN']
+        SKIPS = ['THE END', 'END OF TEASER', 'FADE OUT', 'FADE OUT.']
+        for combo in itertools.product(END, ACT, NUMBERS):
+            SKIPS.append(' '.join(combo))
+        for combo in itertools.product(ACT, NUMBERS):
+            SKIPS.append(' '.join(combo))
+        characters = set()
+        for line in script:
+            matches = re.findall(r"^\s*([A-Z-.'\"() ]+)\s*$", line.strip())
+            if matches:
+                for match in matches:
+                    # Yay random corner cases!
+                    if match in SKIPS:
+                        continue
+                    parens = match.find('(')
+                    quote = match.find('\'')
+                    if parens != -1:
+                        match = match[:parens - 1]
+                    if quote != -1:
+                        match = match[:quote]
+                    if match.endswith('.'):
+                        while match.endswith('.'):
+                            match = match[:-1]
+                    if match.startswith('('):
+                        continue
+                    if match.endswith(')'):
+                        continue
+                    characters.add(match.replace('"', ''))
+        return characters
 
     def _script_to_lines(self):
         return [line for line in self.script]
@@ -114,8 +152,6 @@ class ScriptBlocks(ScriptBase):
 
         return dialogue
 
-
-
     def extract_episode_dialogue(self, remove_blank_lines=True):
         script = deque(self.script.splitlines())
         # Iterate through the lines until a number is found as the first character.
@@ -146,8 +182,10 @@ class ScriptBlocks(ScriptBase):
         # return dialogue
 
     def get_characters(self):
-        a = re.findall(self.regex_character, self.script)
-        print(a)
+        characters = set()
+        for line in self.script:
+            print(re.findall(self.regex_character, line))
+            # return re.findall(self.regex_character, self.script)
 
     def _number_header_from_line(self, line):
         line = line.split()

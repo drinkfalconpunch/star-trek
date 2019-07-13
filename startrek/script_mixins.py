@@ -47,6 +47,9 @@ class ScriptBase(metaclass=ABCMeta):
     def separate_dialogue(block):
         pass
 
+    def _script_to_lines(self):
+        return [line for line in self.script]
+
 
 
 class ScriptBlocks(ScriptBase):
@@ -64,7 +67,9 @@ class ScriptBlocks(ScriptBase):
     # _regex_dialogue_line = r'^[A-Z]{1,}.+:\s*(.+)'
     # regex_dialogue_line = re.compile(_regex_dialogue_line)
 
-    def get_characters(self, script):
+    def get_characters(self):
+        if not self.dialogue:
+            self.extract_episode_dialogue()
         ACT = ['ACT']
         END = ['END OF']
         NUMBERS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN']
@@ -74,7 +79,7 @@ class ScriptBlocks(ScriptBase):
         for combo in itertools.product(ACT, NUMBERS):
             SKIPS.append(' '.join(combo))
         characters = set()
-        for line in script:
+        for line in self.dialogue:
             matches = re.findall(r"^\s*([A-Z-.'\"() ]+)\s*$", line.strip())
             if matches:
                 for match in matches:
@@ -95,10 +100,10 @@ class ScriptBlocks(ScriptBase):
                     if match.endswith(')'):
                         continue
                     characters.add(match.replace('"', ''))
-        return characters
 
-    def _script_to_lines(self):
-        return [line for line in self.script]
+        setattr(self, 'characters', characters)
+
+        return characters
 
     def _iterate_lines_words(self, string, remove_blank_lines=False):
         if isinstance(string, list):

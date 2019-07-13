@@ -181,12 +181,6 @@ class ScriptBlocks(ScriptBase):
 
         # return dialogue
 
-    def get_characters(self):
-        characters = set()
-        for line in self.script:
-            print(re.findall(self.regex_character, line))
-            # return re.findall(self.regex_character, self.script)
-
     def _number_header_from_line(self, line):
         line = line.split()
         return line[0], ' '.join(line[1:])

@@ -15,8 +15,10 @@ class ScriptBase(metaclass=ABCMeta):
                  season_number=0, episode_number=0):
         if script_text:
             self.script = script_text
+            self.script_path = None
         elif script_path:
             self.script = self._get_script_path_contents(script_path)
+            self.script_path = script_path
         else:
             raise ScriptException('No valid script.')
         self.series_name = series_name
@@ -26,7 +28,7 @@ class ScriptBase(metaclass=ABCMeta):
         self.characters = None
 
     @abstractmethod
-    def extract_episode_dialogue(self, remove_blank_lines=False):
+    def extract_dialogue_from_script(self, remove_blank_lines=False):
         pass
 
     @abstractmethod
@@ -81,7 +83,7 @@ class ScriptBlocks(ScriptBase):
 
     def get_characters(self):
         if not self.dialogue:
-            self.extract_episode_dialogue()
+            self.extract_dialogue_from_script()
 
         characters = set()
         for line in self.dialogue:
@@ -110,7 +112,7 @@ class ScriptBlocks(ScriptBase):
 
         return characters
 
-    def _iterate_lines_words(self, string, remove_blank_lines=False):
+    def _iterate_lines_words(self, string, remove_blank_lines=True):
         if isinstance(string, list):
             string_list = string
         else:
@@ -127,7 +129,7 @@ class ScriptBlocks(ScriptBase):
     @staticmethod
     def _separate_dialogue_block(block):
         if not block:
-            return dict(name='None', text='')
+            return # dict(name='None', text='')
         block = deque(block)
         temp = ''
 
@@ -166,7 +168,7 @@ class ScriptBlocks(ScriptBase):
 
         return dialogue
 
-    def separated_dialogue(self):
+    def combine_lines_by_character(self):
         sectioned = self.sectioned_script()
         for number, section in sectioned.items():
             section['part'] = self._separate_dialogue_block(section['part'])
@@ -182,7 +184,6 @@ class ScriptBlocks(ScriptBase):
         for section, content in dialogue.items():
             parts = content['part']
             for section, stuff in parts.items():
-                print(section, stuff)
                 name = stuff['name']
                 for check in characters:
                     if check in name:
@@ -191,7 +192,7 @@ class ScriptBlocks(ScriptBase):
 
         return dialogue
 
-    def extract_episode_dialogue(self, remove_blank_lines=True):
+    def extract_dialogue_from_script(self, remove_blank_lines=True):
         script = deque(self.script.splitlines())
         # Iterate through the lines until a number is found as the first character.
         while True:
@@ -230,7 +231,7 @@ class ScriptBlocks(ScriptBase):
         respective line numbers in said block.'''
 
         if not self.dialogue:
-            self.extract_episode_dialogue()
+            self.extract_dialogue_from_script()
         sections = {}
         indices = []
         _regex_number = r'^\d{1,3}?[a-zA-Z]{0,1}'
@@ -243,7 +244,7 @@ class ScriptBlocks(ScriptBase):
             try:
                 int(words[0][0])
                 number = words[0]
-                name = " ".join(words[1:])
+                name = " ".join(words[1:]).replace(':', '')
                 if not name:
                     name = 'OMITTED'
                 # Corner case check if year is in section number
@@ -265,7 +266,7 @@ class ScriptBlocks(ScriptBase):
 
     def sectioned_script(self):
         if not self.dialogue:
-            self.extract_episode_dialogue()
+            self.extract_dialogue_from_script()
         if not hasattr(self, 'header_indices'):
             self.section_headers()
         sections = {}
@@ -293,7 +294,7 @@ class ScriptLines(ScriptBase):
     _regex_dialogue_line = r'^[A-Z]{1,}.+:\s*(.+)'
     regex_dialogue_line = re.compile(_regex_dialogue_line)
 
-    def extract_episode_dialogue(self, remove_blank_lines=False):
+    def extract_dialogue_from_script(self, remove_blank_lines=False):
         script = deque(self.script.split('\n'))
         # Iterate through the lines until a number is found as the first character.
         while True:

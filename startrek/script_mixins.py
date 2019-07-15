@@ -1,11 +1,12 @@
+import itertools
+import re
 from abc import ABCMeta, abstractmethod
 from collections import deque
-import re
 from pathlib import Path
+from typing import List
+
 from startrek.exceptions import ScriptException
 from startrek.utils import pairwise
-import itertools
-from typing import List
 
 OMITTED = 'OMITTED'
 
@@ -22,6 +23,7 @@ class ScriptBase(metaclass=ABCMeta):
         self.season_number = season_number
         self.episode_number = episode_number
         self.dialogue = None
+        self.characters = None
 
     @abstractmethod
     def extract_episode_dialogue(self, remove_blank_lines=False):
@@ -53,7 +55,17 @@ class ScriptBase(metaclass=ABCMeta):
 
 
 class ScriptBlocks(ScriptBase):
+    # TODO: Rename functions/attributes.
     SECTION_HEADER = ''
+
+    ACT = ['ACT']
+    END = ['END OF']
+    NUMBERS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN']
+    SKIPS = ['THE END', 'END OF TEASER', 'FADE OUT', 'FADE OUT.']
+    for combo in itertools.product(END, ACT, NUMBERS):
+        SKIPS.append(' '.join(combo))
+    for combo in itertools.product(ACT, NUMBERS):
+        SKIPS.append(' '.join(combo))
 
     _regex_section_number = r'^\d+[a-zA-Z]?'
     regex_section_number = re.compile(_regex_section_number)
@@ -61,7 +73,7 @@ class ScriptBlocks(ScriptBase):
     _regex_header = r'^\d+[a-zA-Z]?\s*(.+)$'
     regex_header = re.compile(_regex_header)
     # regex to match line starting with capitalized words with a colon, signifying character dialogue.
-    _regex_character = r'^\s*([A-Z. ]+)\s*$'
+    _regex_character = r"^\s*([A-Z-.'\"() ]+)\s*$"
     regex_character = re.compile(_regex_character)
     # # regex to match everything after the character name, colon, and space
     # _regex_dialogue_line = r'^[A-Z]{1,}.+:\s*(.+)'
@@ -70,21 +82,14 @@ class ScriptBlocks(ScriptBase):
     def get_characters(self):
         if not self.dialogue:
             self.extract_episode_dialogue()
-        ACT = ['ACT']
-        END = ['END OF']
-        NUMBERS = ['ONE', 'TWO', 'THREE', 'FOUR', 'FIVE', 'SIX', 'SEVEN', 'EIGHT', 'NINE', 'TEN']
-        SKIPS = ['THE END', 'END OF TEASER', 'FADE OUT', 'FADE OUT.']
-        for combo in itertools.product(END, ACT, NUMBERS):
-            SKIPS.append(' '.join(combo))
-        for combo in itertools.product(ACT, NUMBERS):
-            SKIPS.append(' '.join(combo))
+
         characters = set()
         for line in self.dialogue:
-            matches = re.findall(r"^\s*([A-Z-.'\"() ]+)\s*$", line.strip())
+            matches = re.findall(self.regex_character, line.strip())
             if matches:
                 for match in matches:
                     # Yay random corner cases!
-                    if match in SKIPS:
+                    if match in self.SKIPS:
                         continue
                     parens = match.find('(')
                     quote = match.find('\'')
@@ -101,7 +106,7 @@ class ScriptBlocks(ScriptBase):
                         continue
                     characters.add(match.replace('"', ''))
 
-        setattr(self, 'characters', characters)
+        self.characters = characters
 
         return characters
 
@@ -120,12 +125,16 @@ class ScriptBlocks(ScriptBase):
                 yield line, words
 
     @staticmethod
-    def separate_dialogue(block: List[str]):
+    def _separate_dialogue_block(block):
+        if not block:
+            return dict(name='None', text='')
         block = deque(block)
         temp = ''
 
         # Check if any initial lines are text and save them.
         while True:
+            if not block:
+                break
             line = block.popleft()
             if not line.isupper():
                 # First line is dialogue/text
@@ -157,6 +166,31 @@ class ScriptBlocks(ScriptBase):
 
         return dialogue
 
+    def separated_dialogue(self):
+        sectioned = self.sectioned_script()
+        for number, section in sectioned.items():
+            section['part'] = self._separate_dialogue_block(section['part'])
+        return sectioned
+
+    def _iterate_dialogue_dict(self):
+        pass
+
+    @staticmethod
+    def replace_character_names(dialogue, characters):
+        # Dict[str, Dict[str, Dict[int, Dict[str, str]]]].
+        characters.add('None')
+        for section, content in dialogue.items():
+            parts = content['part']
+            for section, stuff in parts.items():
+                print(section, stuff)
+                name = stuff['name']
+                for check in characters:
+                    if check in name:
+                        stuff['name'] = check
+                        break
+
+        return dialogue
+
     def extract_episode_dialogue(self, remove_blank_lines=True):
         script = deque(self.script.splitlines())
         # Iterate through the lines until a number is found as the first character.
@@ -184,8 +218,6 @@ class ScriptBlocks(ScriptBase):
 
         self.dialogue = dialogue
 
-        # return dialogue
-
     def _number_header_from_line(self, line):
         line = line.split()
         return line[0], ' '.join(line[1:])
@@ -199,7 +231,6 @@ class ScriptBlocks(ScriptBase):
 
         if not self.dialogue:
             self.extract_episode_dialogue()
-            # raise AttributeError('')  # 'Dialogue not found. Script.extract_entire_dialogue()')
         sections = {}
         indices = []
         _regex_number = r'^\d{1,3}?[a-zA-Z]{0,1}'
@@ -235,17 +266,17 @@ class ScriptBlocks(ScriptBase):
     def sectioned_script(self):
         if not self.dialogue:
             self.extract_episode_dialogue()
-        if not hasattr(self, 'section_names'):
+        if not hasattr(self, 'header_indices'):
             self.section_headers()
         sections = {}
 
         index_pairs = pairwise(self.header_indices)
 
         for pair in index_pairs:
-            text = self.get_between_indices(self.dialogue, *pair)
-            head = text.pop(0)
+            part = self.get_between_indices(self.dialogue, *pair)
+            head = part.pop(0)
             number, header = self._number_header_from_line(head)
-            sections[number] = dict(header=header, text=text)
+            sections[number] = dict(header=header, part=part)
 
         return sections
 
